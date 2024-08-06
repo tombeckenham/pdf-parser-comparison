@@ -4,7 +4,6 @@ const pdfParse = require("pdf-parse");
 async function extractText(pdfPath) {
 	const dataBuffer = fs.readFileSync(pdfPath);
 	const data = await pdfParse(dataBuffer);
-	console.log(data);
 	return data.text.trim();
 }
 
