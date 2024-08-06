@@ -4,18 +4,20 @@
 	"main": "index.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1",
-		"start": "node src/pdfjs_parser.cjs"
+		"start": "node --experimental-specifier-resolution=node --loader ts-node/esm src/pdfjs_parser.ts",
+		"build": "tsc"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
-	"description": "",
 	"dependencies": {
 		"@types/node": "^22.0.2",
 		"@types/pdf-parse": "^1.1.4",
 		"pdf-parse": "^1.1.1",
+		"pdfjs-dist": "^4.5.136",
 		"ts-node": "^10.9.2",
 		"typescript": "^5.5.4"
 	},
-	"type": "module"
+	"type": "module",
+	"description": ""
 }
