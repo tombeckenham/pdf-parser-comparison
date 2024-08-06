@@ -49,4 +49,8 @@ cd "$SCRIPT_DIR/pdf-parse-new"
 run_parser "pdf-parse-new" "npm run start --"
 cd "$SCRIPT_DIR"
 
+cd "$SCRIPT_DIR/unpdf"
+run_parser "unpdf" "npm run start --"
+cd "$SCRIPT_DIR"
+
 echo "All parsing complete. Results are in the '$RESULTS_DIR' directory."
