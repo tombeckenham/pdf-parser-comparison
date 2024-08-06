@@ -8,7 +8,7 @@ source .venv/bin/activate
 pip install pypdf pymupdf pdfplumber PyPDF2 pdfminer.six
 
 # Create directories for each parser
-mkdir -p pypdf pymupdf pdfjs pdfplumber pdfreader pypdf2 pdfminer pdf-parse-new
+mkdir -p pypdf pymupdf pdfjs pdfplumber pdfreader pypdf2 pdfminer pdf-parse-new unpdf
 
 # Create Python files for each parser
 cat > pypdf/pypdf_parser.py << EOL
@@ -161,10 +161,10 @@ PyPDF2
 pdfminer.six
 EOL
 
-# Set up PDF.js (TypeScript/Node.js implementation)
+# Set up pdfjs (TypeScript/Node.js implementation using pdfjs-dist)
 cd pdfjs
 npm init -y
-npm install pdf-parse @types/node typescript ts-node @types/pdf-parse
+npm install pdfjs-dist @types/node typescript ts-node
 npm pkg set type="module" scripts.build="tsc" scripts.start="node --experimental-specifier-resolution=node --loader ts-node/esm src/pdfjs_parser.ts"
 
 cat > tsconfig.json << EOL
@@ -186,44 +186,44 @@ EOL
 
 mkdir -p src
 cat > src/pdfjs_parser.ts << EOL
-import fs from "fs";
-
-async function importPdfParse() {
-    if (!module.parent) {
-        // Temporarily set module.parent to mimic being required by another module
-        module.parent = module;
-    }
-    const pdfParse = await import("pdf-parse");
-    module.parent = undefined; // Reset module.parent after import if needed
-    return pdfParse;
-}
+import fs from 'fs';
+import * as pdfjsLib from 'pdfjs-dist';
 
 async function extractText(pdfPath: string): Promise<string> {
-    const dataBuffer = fs.readFileSync(pdfPath);
-    const pdfParse = await importPdfParse();
-    const data = await pdfParse.default(dataBuffer);
-    return data.text.trim();
+  const data = new Uint8Array(fs.readFileSync(pdfPath));
+  const loadingTask = pdfjsLib.getDocument({ data });
+  const doc = await loadingTask.promise;
+  
+  let fullText = '';
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    const strings = content.items.map((item: any) => item.str);
+    fullText += strings.join(' ') + '\n';
+  }
+  
+  return fullText.trim();
 }
 
 async function main() {
-    if (process.argv.length < 3) {
-        console.log('Usage: npm run start -- <pdf_file> [-j]');
-        process.exit(1);
-    }
+  if (process.argv.length < 3) {
+    console.log('Usage: npm run start -- <pdf_file> [-j]');
+    process.exit(1);
+  }
 
-    const pdfPath = process.argv[2];
-    const jsonOutput = process.argv.includes('-j');
+  const pdfPath = process.argv[2];
+  const jsonOutput = process.argv.includes('-j');
 
-    try {
-        const text = await extractText(pdfPath);
-        if (jsonOutput) {
-            console.log(JSON.stringify({ text }));
-        } else {
-            console.log(text);
-        }
-    } catch (error) {
-        console.error('Error:', error);
+  try {
+    const text = await extractText(pdfPath);
+    if (jsonOutput) {
+      console.log(JSON.stringify({ text }));
+    } else {
+      console.log(text);
     }
+  } catch (error) {
+    console.error('Error:', error);
+  }
 }
 
 main();
@@ -374,6 +374,66 @@ EOL
 
 cd ..
 
+# Set up unpdf (TypeScript/Node.js implementation)
+cd unpdf
+npm init -y
+npm install unpdf @types/node typescript ts-node
+npm pkg set type="module" scripts.build="tsc" scripts.start="node --experimental-specifier-resolution=node --loader ts-node/esm src/unpdf_parser.ts"
+
+cat > tsconfig.json << EOL
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "strict": true,
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*"],
+  "ts-node": {
+    "esm": true
+  }
+}
+EOL
+
+mkdir -p src
+cat > src/unpdf_parser.ts << EOL
+import fs from "fs";
+import { extractText } from "unpdf";
+
+async function extractPdfText(pdfPath: string): Promise<string> {
+    const buffer = fs.readFileSync(pdfPath);
+    const text = await extractText(buffer);
+    return text.trim();
+}
+
+async function main() {
+    if (process.argv.length < 3) {
+        console.log('Usage: npm run start -- <pdf_file> [-j]');
+        process.exit(1);
+    }
+
+    const pdfPath = process.argv[2];
+    const jsonOutput = process.argv.includes('-j');
+
+    try {
+        const text = await extractPdfText(pdfPath);
+        if (jsonOutput) {
+            console.log(JSON.stringify({ text }));
+        } else {
+            console.log(text);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+main();
+EOL
+
+cd ..
+
 # Create a README file
 cat > README.md << EOL
 # PDF Parser Comparison
@@ -383,12 +443,13 @@ This project compares different PDF parsing libraries for text extraction accura
 ## Libraries included:
 1. PyPDF (Python)
 2. PyMuPDF (Python)
-3. PDF.js (TypeScript/Node.js)
+3. PDF.js (TypeScript/Node.js using pdfjs-dist)
 4. pdfplumber (Python)
 5. pdfreader (TypeScript/Node.js)
 6. PyPDF2 (Python)
 7. pdfminer.six (Python)
 8. pdf-parse-new (TypeScript/Node.js)
+9. unpdf (TypeScript/Node.js)
 
 ## Usage:
 For Python parsers, run:
